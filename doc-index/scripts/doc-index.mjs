@@ -103,7 +103,7 @@ function adrIndex(dir) {
     const ti = bl.findIndex((l, i) => !mask[i] && /^#\s+(.+)$/.test(l));
     const title = ti >= 0 ? bl[ti].replace(/^#\s+/, '').trim() : f;
     const rest = ti >= 0 ? bl.filter((_, i) => i !== ti) : bl;
-    const status = meta['superseded-by'] ? `superseded → ${meta['superseded-by']}` : (meta.status ?? '');
+    const status = meta['superseded-by'] ? `已被 ${meta['superseded-by']} 取代` : (meta.status ?? '');
     if (!meta.summary) console.error(`警告：${f} 缺少 summary，改用第一段的第一句`);
     const summary = meta.summary || fallbackSummary(rest);
     return `| ${f.slice(0, 4)} | [${cell(title)}](${f}) | ${cell(status)} | ${cell(summary)} |`;
