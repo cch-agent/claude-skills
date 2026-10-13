@@ -16,5 +16,5 @@ ln -s ~/Documents/project/claude-skills/doc-index ~/.claude/skills/doc-index
 建議在 `~/.claude/CLAUDE.md` 加上讀取規則（skill 只在被觸發時載入，這條讓「先看索引」每次都生效）：
 
 ```markdown
-- 查 ADR 或舊進度時，先讀索引（`docs/adr/README.md`、`context/progress-archive.md` 開頭目錄），只開需要的那篇或那一節；寫入這類文件時依 `doc-index` skill。
+- ADR 與舊進度：先讀索引（`docs/adr/README.md`、`context/progress-archive.md` 開頭目錄），只開需要的那篇或那一節；新增、修改、歸檔依 `doc-index` skill。
 ```
