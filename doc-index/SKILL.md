@@ -1,24 +1,24 @@
 ---
 name: doc-index
-description: 查專案決策或 ADR（docs/adr/）、查舊進度（context/progress-archive.md）、新增或修改 ADR、或 context/progress.md 過長（約 150 行以上）要歸檔時使用。
+description: 先讀索引、只開需要的那篇或那一節，寫入後重新產生索引。用於查專案決策或 ADR（docs/adr/）、查舊進度（context/progress-archive.md）、新增或修改 ADR、或 context/progress.md 過長（約 150 行以上）要歸檔時。
 ---
 
 # doc-index：會增長的紀錄文件，先看索引再開原文
 
-只用在**內容多且會不斷增長**的文件。寫完就定稿的計畫書、研究報告不建索引，需要時用 `grep -n "^##" <檔案>` 找章節，再用 Read 的 offset/limit 只讀那段。
+只用在**內容多且會不斷增長**的文件。寫完就定稿的計畫書、研究報告不建索引，需要時用 `grep -n '^##' <檔案>` 找章節，再用 Read 的 offset/limit 只讀那段。
 
 | 文件 | 索引 |
 |---|---|
 | `docs/adr/NNNN-*.md` | `docs/adr/README.md`（一篇一行） |
-| `context/progress-archive.md`（已完成工作的歸檔） | 檔案開頭 `<!-- toc:start -->` 與 `<!-- toc:end -->` 之間的目錄（只收 `##` 標題，附行號） |
+| `context/progress-archive.md`（已完成工作的歸檔） | 檔案開頭的 toc 目錄（格式見「導入步驟」） |
 | `context/progress.md` | 本身保持短，不另建索引。保留：專案目標、合作流程、仍有效的決策（一行一條，已成 ADR 的附連結）、目前狀態與下一步 |
 
-腳本是 `~/.claude/skills/doc-index/scripts/doc-index.mjs`。以下指令皆為完整可執行形式，每次 Bash 呼叫都照抄完整路徑（shell 狀態不保留）。
+腳本是 `~/.claude/skills/doc-index/scripts/doc-index.mjs`。
 
 ### 導入步驟（專案第一次使用）
 
 - ADR：`docs/adr/` 目錄須已存在（否則 exit 2），再跑 `node ~/.claude/skills/doc-index/scripts/doc-index.mjs adr docs/adr`；`README.md` 不存在會自動建立。
-- 歸檔檔：先在檔案標題下放兩行 `<!-- toc:start -->`、`<!-- toc:end -->`（缺標記或順序相反會 exit 2），再跑 `node ~/.claude/skills/doc-index/scripts/doc-index.mjs toc context/progress-archive.md`。
+- 歸檔檔：先在檔案標題下放兩行 `<!-- toc:start -->`、`<!-- toc:end -->`（目錄放在這兩行之間，只收 `##` 標題並附行號；缺標記或順序相反會 exit 2），再跑 `node ~/.claude/skills/doc-index/scripts/doc-index.mjs toc context/progress-archive.md`。
 
 ## 讀取
 
@@ -52,7 +52,7 @@ description: 查專案決策或 ADR（docs/adr/）、查舊進度（context/prog
 
 1. 把**已完成**的工作段落（例如已上線的切片、已結案的實驗）原文搬到 `context/progress-archive.md`，以 `## <名稱>（日期）` 分節，新的放最上面。
 2. progress.md 原處只留一行結論＋「細節見 progress-archive.md」。仍有效的決策留在 progress.md；已寫成 ADR 的決策改成一行加 ADR 連結。
-3. 歸檔檔第一次建立時，依「導入步驟」放 toc 標記。
+3. 歸檔檔第一次建立時，放 toc 標記（見「導入步驟」）。
 4. 執行 `node ~/.claude/skills/doc-index/scripts/doc-index.mjs toc context/progress-archive.md` 更新目錄。
 
 驗證不遺失內容：歸檔前後用 `wc -l` 比對 progress.md 與歸檔檔的總行數（總和應相同，扣掉新增的分節標題與原處新增的結論行），或用 `git diff` 確認只有搬移、沒有刪改。什麼算「已完成」不確定時，留在 progress.md。
