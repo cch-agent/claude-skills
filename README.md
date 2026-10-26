@@ -2,7 +2,7 @@
 
 個人 Claude Code skills。hooks 類的 plugin 在 [claude-mods](https://github.com/cch-agent/claude-mods)。
 
-- `doc-index`：會持續增長的紀錄文件（ADR、`progress.md` 歸檔）先讀索引、只開需要的那篇或那一節；附產生索引的腳本 `doc-index/scripts/doc-index.mjs`（Node ≥ 18，無相依）。
+- `doc-index`：會持續增長的紀錄文件（ADR、`progress.md` 歸檔）先讀索引、只開需要的那篇或那一節；版型 2 的 `progress.md` 只當索引，進行中項目各一份 `context/work/<slug>.md`，清單由 `work` 子指令產生，`status` 回報專案版型與升級缺項；附產生索引的腳本 `doc-index/scripts/doc-index.mjs`（Node ≥ 18，無相依）。
 
 ## 安裝
 

@@ -7,10 +7,16 @@
 //     把 file 內 <!-- toc:start --> 與 <!-- toc:end --> 之間換成 `##` 標題清單（附行號），
 //     讓 AI 讀到 <!-- toc:end --> 為止，再用 offset 只讀需要的那一節。
 //
+//   doc-index.mjs work <dir> <progress檔> [--check]
+//     由 dir（context/work）底下每份 *.md 的 frontmatter（status、branch、summary）產生進行中清單，
+//     寫進 progress檔 內 <!-- work:start --> 與 <!-- work:end --> 之間，每份一行，依檔名排序。
+//   doc-index.mjs status
+//     回報 context/progress.md 的版型（有 <!-- doc-index:layout=2 --> 為 2，否則 1）與升級到 2 尚缺的項目。
+//
 // --check：只比對，不寫檔；內容過期時 exit 1。
 // exit code：0 正常；1 --check 發現索引過期；2 錯誤（參數、檔案、標記、frontmatter 格式）。
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, dirname, relative } from 'node:path';
 
 class UserError extends Error {}
 const fail = (msg) => {
@@ -154,10 +160,72 @@ function withToc(raw) {
   return renderToc(draft, ds, de, scan(draft)).join('\n').replace(/\n/g, eol);
 }
 
+const WSTART = '<!-- work:start -->';
+const WEND = '<!-- work:end -->';
+const LAYOUT2 = '<!-- doc-index:layout=2 -->';
+
+/** 找出 start／end 標記所在行（以整行比對）；回傳 { s, e }，缺漏為 -1。 */
+function markerLines(lines, start, end) {
+  const find = (mark) => lines.findIndex((l) => l.trimEnd() === mark);
+  return { s: find(start), e: find(end) };
+}
+
+/** raw 為 progress 檔內容；把 work 標記之間換成 rows，換行風格不變。 */
+function withWork(raw, rows) {
+  const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+  const lines = norm(raw).split('\n');
+  const { s, e } = markerLines(lines, WSTART, WEND);
+  if (s < 0) fail(`找不到 ${WSTART} 標記`);
+  if (e < 0) fail(`找不到 ${WEND} 標記`);
+  if (e < s) fail(`標記順序錯誤：${WEND} 在 ${WSTART} 之前`);
+  return [...lines.slice(0, s + 1), ...rows, ...lines.slice(e)].join('\n').replace(/\n/g, eol);
+}
+
+function workRows(dir, progressPath) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch (e) {
+    if (e.code === 'ENOENT') fail(`找不到目錄：${dir}`);
+    fail(`無法讀取目錄 ${dir}：${e.message}`);
+  }
+  const rel = relative(dirname(progressPath), dir).split('\\').join('/');
+  return names
+    .filter((f) => f.endsWith('.md'))
+    .sort()
+    .map((f) => {
+      const { meta } = frontmatter(norm(readText(join(dir, f))), f);
+      if (!meta.summary) console.error(`警告：${f} 缺少 summary`);
+      else if ([...meta.summary].length > 60) console.error(`警告：${f} 的 summary 超過 60 字`);
+      const link = rel && rel !== '.' ? `${rel}/${f}` : f;
+      const field = (v) => cell(v ?? '') || '-';
+      return `- [${f.slice(0, -3)}](${link}) · ${field(meta.status)} · ${field(meta.branch)} · ${field(meta.summary)}`;
+    });
+}
+
+/** 回報版型與升級到 2 尚缺的項目；exit 0 無缺項、1 有缺項、2 找不到 progress.md。 */
+function status() {
+  const lines = norm(readText('context/progress.md')).split('\n');
+  const has = (mark) => lines.some((l) => l.trimEnd() === mark);
+  const layout = has(LAYOUT2) ? 2 : 1;
+  const missing = [];
+  if (layout === 1) missing.push(`context/progress.md 缺 ${LAYOUT2} 標記`);
+  const { s, e } = markerLines(lines, WSTART, WEND);
+  if (s < 0) missing.push(`context/progress.md 缺 ${WSTART} 標記`);
+  if (e < 0) missing.push(`context/progress.md 缺 ${WEND} 標記`);
+  if (s >= 0 && e >= 0 && e < s) missing.push(`${WEND} 在 ${WSTART} 之前，順序相反`);
+  if (!existsSync('context/work')) missing.push('缺 context/work/ 目錄');
+  console.log(`版型 ${layout}`);
+  if (!missing.length) return console.log('無缺項');
+  console.log('尚缺：');
+  missing.forEach((m) => console.log(`- ${m}`));
+  process.exit(1);
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const [cmd, ...rest] = argv;
-  const usage = `用法：${basename(process.argv[1])} adr [dir] [--check] | toc <file> [--check]`;
+  const usage = `用法：${basename(process.argv[1])} adr [dir] [--check] | toc <file> [--check] | work <dir> <progress檔> [--check] | status`;
   const check = rest.includes('--check');
   const flags = rest.filter((a) => a.startsWith('-') && a !== '--check');
   if (flags.length) fail(`未知的參數：${flags.join(' ')}\n${usage}`);
@@ -185,6 +253,14 @@ function main() {
     if (args.length > 1) fail(`多餘的參數：${args.slice(1).join(' ')}\n${usage}`);
     const raw = readText(args[0]);
     emit(args[0], withToc(raw), raw);
+  } else if (cmd === 'work') {
+    if (args.length < 2) fail(`缺少參數：work <dir> <progress檔>\n${usage}`);
+    if (args.length > 2) fail(`多餘的參數：${args.slice(2).join(' ')}\n${usage}`);
+    const raw = readText(args[1]);
+    emit(args[1], withWork(raw, workRows(args[0], args[1])), raw);
+  } else if (cmd === 'status') {
+    if (rest.length) fail(`status 不接受參數\n${usage}`);
+    status();
   } else {
     fail(usage);
   }
