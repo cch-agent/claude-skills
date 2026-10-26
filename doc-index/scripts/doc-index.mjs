@@ -134,13 +134,17 @@ function renderToc(lines, s, e, headings) {
   return [...lines.slice(0, s + 1), ...toc, ...lines.slice(e)];
 }
 
+/** 整行（忽略行尾空白）等於 mark 的第一行索引，找不到為 -1。 */
+function markerIndex(lines, mark) {
+  return lines.findIndex((l) => l.trimEnd() === mark);
+}
+
 /** raw 為原檔內容；回傳換成新目錄後的內容，換行風格（LF／CRLF）與原檔相同。 */
 function withToc(raw) {
   const eol = raw.includes('\r\n') ? '\r\n' : '\n';
   const lines = norm(raw).split('\n');
-  const find = (mark) => lines.findIndex((l) => l.trimEnd() === mark);
-  const s = find(START);
-  const e = find(END);
+  const s = markerIndex(lines, START);
+  const e = markerIndex(lines, END);
   if (s < 0) fail(`找不到 ${START} 標記`);
   if (e < 0) fail(`找不到 ${END} 標記`);
   if (e < s) fail(`標記順序錯誤：${END} 在 ${START} 之前`);
@@ -166,8 +170,7 @@ const LAYOUT2 = '<!-- doc-index:layout=2 -->';
 
 /** 找出 start／end 標記所在行（以整行比對）；回傳 { s, e }，缺漏為 -1。 */
 function markerLines(lines, start, end) {
-  const find = (mark) => lines.findIndex((l) => l.trimEnd() === mark);
-  return { s: find(start), e: find(end) };
+  return { s: markerIndex(lines, start), e: markerIndex(lines, end) };
 }
 
 /** raw 為 progress 檔內容；把 work 標記之間換成 rows，換行風格不變。 */
@@ -206,7 +209,7 @@ function workRows(dir, progressPath) {
 /** 回報版型與升級到 2 尚缺的項目；exit 0 無缺項、1 有缺項、2 找不到 progress.md。 */
 function status() {
   const lines = norm(readText('context/progress.md')).split('\n');
-  const has = (mark) => lines.some((l) => l.trimEnd() === mark);
+  const has = (mark) => markerIndex(lines, mark) >= 0;
   const layout = has(LAYOUT2) ? 2 : 1;
   const missing = [];
   if (layout === 1) missing.push(`context/progress.md 缺 ${LAYOUT2} 標記`);
